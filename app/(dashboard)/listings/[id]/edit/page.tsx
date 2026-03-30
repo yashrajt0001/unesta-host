@@ -49,7 +49,8 @@ export default function EditListingPage() {
     reset,
     formState: { errors, isSubmitting },
   } = useForm<CreateListingFormValues>({
-    resolver: zodResolver(createListingSchema),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(createListingSchema) as any,
     defaultValues: {
       title: '',
       description: '',
