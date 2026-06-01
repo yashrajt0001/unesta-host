@@ -15,23 +15,9 @@ export const setAuthToken = (token: string) => {
   }
 };
 
-export const getRefreshToken = () => {
-  if (typeof window !== 'undefined') {
-    return localStorage.getItem('host_refresh_token');
-  }
-  return null;
-};
-
-export const setRefreshToken = (token: string) => {
-  if (typeof window !== 'undefined') {
-    localStorage.setItem('host_refresh_token', token);
-  }
-};
-
 export const clearTokens = () => {
   if (typeof window !== 'undefined') {
     localStorage.removeItem('host_token');
-    localStorage.removeItem('host_refresh_token');
   }
 };
 
@@ -51,34 +37,6 @@ async function apiCall(endpoint: string, options: RequestInit = {}) {
   const response = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
 
   if (response.status === 401) {
-    // Try refreshing the token once
-    const rt = getRefreshToken();
-    if (rt && !endpoint.includes('/auth/')) {
-      try {
-        const refreshRes = await fetch(`${API_URL}/auth/refresh-token`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken: rt }),
-        });
-        const refreshData = await refreshRes.json();
-        if (refreshData.success) {
-          setAuthToken(refreshData.data.accessToken);
-          setRefreshToken(refreshData.data.refreshToken);
-          // Retry original request with new token
-          headers['Authorization'] = `Bearer ${refreshData.data.accessToken}`;
-          const retryRes = await fetch(`${API_URL}${endpoint}`, { ...options, headers });
-          const retryJson = await retryRes.json();
-          if (!retryJson.success) throw new Error(retryJson.message || 'Request failed');
-          if (!retryJson.data) {
-            const { success, message, ...rest } = retryJson;
-            retryJson.data = rest;
-          }
-          return retryJson;
-        }
-      } catch {
-        // Refresh failed — fall through to throw
-      }
-    }
     clearTokens();
     throw new Error('Unauthorized');
   }
@@ -133,11 +91,8 @@ export const auth = {
   verifyOtp: (phone: string, otp: string) =>
     apiCall('/auth/verify-otp', { method: 'POST', body: JSON.stringify({ phone, otp }) }),
 
-  refreshToken: (refreshToken: string) =>
-    apiCall('/auth/refresh-token', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
-
-  logout: (refreshToken: string) =>
-    apiCall('/auth/logout', { method: 'POST', body: JSON.stringify({ refreshToken }) }),
+  googleLogin: (idToken: string) =>
+    apiCall('/auth/google', { method: 'POST', body: JSON.stringify({ idToken }) }),
 
   getCurrentUser: () => apiCall('/users/me'),
 };

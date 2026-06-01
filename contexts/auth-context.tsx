@@ -4,10 +4,8 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import {
   auth,
   setAuthToken,
-  setRefreshToken,
   clearTokens,
   getAuthToken,
-  getRefreshToken,
 } from '@/lib/api-client';
 import type { User } from '@/types';
 
@@ -16,6 +14,7 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (phone: string, otp: string) => Promise<{ isNewUser: boolean }>;
+  loginWithGoogle: (idToken: string) => Promise<{ isNewUser: boolean }>;
   logout: () => void;
 }
 
@@ -44,16 +43,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (phone: string, otp: string) => {
     const data = await auth.verifyOtp(phone, otp);
     setAuthToken(data.data.accessToken);
-    setRefreshToken(data.data.refreshToken);
+    setUser(data.data.user);
+    return { isNewUser: data.data.isNewUser };
+  };
+
+  const loginWithGoogle = async (idToken: string) => {
+    const data = await auth.googleLogin(idToken);
+    setAuthToken(data.data.accessToken);
     setUser(data.data.user);
     return { isNewUser: data.data.isNewUser };
   };
 
   const logout = () => {
-    const rt = getRefreshToken();
-    if (rt) {
-      auth.logout(rt).catch(() => {});
-    }
     clearTokens();
     setUser(null);
     window.location.href = '/login';
@@ -66,6 +67,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isLoading,
         isAuthenticated: !!user,
         login,
+        loginWithGoogle,
         logout,
       }}
     >

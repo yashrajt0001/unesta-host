@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { GoogleLogin } from '@react-oauth/google';
 import { useAuth } from '@/contexts/auth-context';
 import { auth } from '@/lib/api-client';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ export default function LoginPage() {
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
   const [isLoading, setIsLoading] = useState(false);
-  const { login, isAuthenticated } = useAuth();
+  const { login, loginWithGoogle, isAuthenticated } = useAuth();
   const router = useRouter();
 
   if (isAuthenticated) {
@@ -36,6 +37,20 @@ export default function LoginPage() {
       toast.error(err instanceof Error ? err.message : 'Failed to send OTP');
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleGoogleSuccess = async (credential: string | undefined) => {
+    if (!credential) {
+      toast.error('Google sign-in failed');
+      return;
+    }
+    try {
+      await loginWithGoogle(credential);
+      toast.success('Logged in successfully');
+      router.push('/dashboard');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Google sign-in failed');
     }
   };
 
@@ -86,22 +101,39 @@ export default function LoginPage() {
           </CardHeader>
           <CardContent>
             {step === 'phone' ? (
-              <form onSubmit={handleSendOtp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="phone" className="text-xs font-medium">Phone Number</Label>
-                  <Input
-                    id="phone"
-                    type="tel"
-                    placeholder="Enter your phone number"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    required
+              <div className="space-y-4">
+                <div className="flex justify-center">
+                  <GoogleLogin
+                    onSuccess={(res) => handleGoogleSuccess(res.credential)}
+                    onError={() => toast.error('Google sign-in failed')}
+                    useOneTap={false}
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoading}>
-                  {isLoading ? 'Sending...' : 'Send OTP'}
-                </Button>
-              </form>
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border" />
+                  </div>
+                  <div className="relative flex justify-center text-[11px] uppercase">
+                    <span className="bg-card px-2 text-muted-foreground">or</span>
+                  </div>
+                </div>
+                <form onSubmit={handleSendOtp} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="phone" className="text-xs font-medium">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="Enter your phone number"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <Button type="submit" className="w-full" disabled={isLoading}>
+                    {isLoading ? 'Sending...' : 'Send OTP'}
+                  </Button>
+                </form>
+              </div>
             ) : (
               <form onSubmit={handleVerifyOtp} className="space-y-4">
                 <div className="space-y-2">
